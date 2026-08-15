@@ -12,7 +12,7 @@ export async function POST(req) {
     const file = formData.get('file');
     const userId = formData.get('userId');
 
-    // 1. فحص رصيد المستخدم في Supabase (إن وُجد)
+    // 1. التحقق من رصيد المستخدم في Supabase (إن وُجد)
     let userProfile = null;
     if (userId) {
       const { data } = await supabase
@@ -27,8 +27,8 @@ export async function POST(req) {
       }
     }
 
-    // 2. إعداد أجزاء الإدخال لـ Gemini
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    // 2. استخدام نموذج يدعم قراءة مستندات PDF
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash-latest' });
     const promptParts = [];
 
     // تحويل ملف PDF إلى Base64 وإضافته للطلب
