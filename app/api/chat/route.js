@@ -3,12 +3,13 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { supabase } from '@/app/lib/supabase';
 import { NextResponse } from 'next/server';
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
+const apiKey = process.env.GEMINI_API_KEY || '';
+const genAI = new GoogleGenerativeAI(apiKey);
 
 export async function POST(req) {
   try {
     const formData = await req.formData();
-    const prompt = formData.get('prompt') || 'شرح وتلخيص هذا الملف بالتفصيل';
+    const prompt = formData.get('prompt') || 'لخص واشرح هذا الملف بالتفصيل';
     const file = formData.get('file');
     const userId = formData.get('userId');
 
@@ -27,11 +28,11 @@ export async function POST(req) {
       }
     }
 
-    // 2. استخدام نموذج يدعم قراءة مستندات PDF
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash-latest' });
+    // 2. استخدام الإصدار المستقر gemini-1.5-flash
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
     const promptParts = [];
 
-    // تحويل ملف PDF إلى Base64 وإضافته للطلب
+    // تحويل ملف PDF إلى Base64
     if (file && typeof file !== 'string') {
       const arrayBuffer = await file.arrayBuffer();
       const base64Data = Buffer.from(arrayBuffer).toString('base64');
@@ -43,10 +44,10 @@ export async function POST(req) {
       });
     }
 
-    const aiPrompt = `أنت مساعد ذكي متخصص في المستندات لمنصة Q2Mid. أجب بلغة عربية فصحى واضحة وشاملة.\n\nالسؤال أو الطلب: ${prompt}`;
+    const aiPrompt = `أنت مساعد ذكي متخصص في قراءة وتحليل المستندات لمنصة Q2Mid. أجب بلغة عربية فصحى دقيقة وشاملة.\n\nالمطلوب: ${prompt}`;
     promptParts.push(aiPrompt);
 
-    // 3. توليد الإجابة
+    // 3. إرسال الطلب للنموذج
     const result = await model.generateContent(promptParts);
     const response = await result.response;
     const text = response.text();
@@ -61,7 +62,7 @@ export async function POST(req) {
 
     return NextResponse.json({ text });
   } catch (error) {
-    console.error('Chat API Error:', error);
+    console.error('Gemini Error:', error);
     return NextResponse.json({ error: error.message || 'حدث خطأ أثناء معالجة الطلب' }, { status: 500 });
   }
 }
