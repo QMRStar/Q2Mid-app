@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { supabase } from '@/app/lib/supabase'; // تم تحديث المسار
 import { NextResponse } from 'next/server';
