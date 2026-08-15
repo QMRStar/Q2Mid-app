@@ -1,19 +1,15 @@
 export const dynamic = 'force-dynamic';
-import { GoogleGenerativeAI } from '@google/generative-ai';
 import { supabase } from '@/app/lib/supabase';
 import { NextResponse } from 'next/server';
-
-const apiKey = process.env.GEMINI_API_KEY || '';
-const genAI = new GoogleGenerativeAI(apiKey);
 
 export async function POST(req) {
   try {
     const formData = await req.formData();
-    const prompt = formData.get('prompt') || 'لخص واشرح هذا الملف بالتفصيل';
+    const prompt = formData.get('prompt') || 'شرح وتلخيص هذا الملف بالتفصيل';
     const file = formData.get('file');
     const userId = formData.get('userId');
 
-    // 1. التحقق من رصيد المستخدم في Supabase (إن وُجد)
+    // 1. التحقق من رصيد المستخدم في Supabase
     let userProfile = null;
     if (userId) {
       const { data } = await supabase
@@ -28,31 +24,53 @@ export async function POST(req) {
       }
     }
 
-    // 2. استخدام الإصدار المستقر gemini-1.5-flash
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-    const promptParts = [];
+    // 2. تجهيز البيانات للذكاء الاصطناعي
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      return NextResponse.json({ error: 'مفتاح GEMINI_API_KEY غير موجود في إعدادات البيئة' }, { status: 500 });
+    }
 
-    // تحويل ملف PDF إلى Base64
+    const parts = [];
+
+    // تحويل الـ PDF إلى Base64
     if (file && typeof file !== 'string') {
       const arrayBuffer = await file.arrayBuffer();
       const base64Data = Buffer.from(arrayBuffer).toString('base64');
-      promptParts.push({
-        inlineData: {
+      parts.push({
+        inline_data: {
+          mime_type: file.type || 'application/pdf',
           data: base64Data,
-          mimeType: file.type || 'application/pdf',
         },
       });
     }
 
-    const aiPrompt = `أنت مساعد ذكي متخصص في قراءة وتحليل المستندات لمنصة Q2Mid. أجب بلغة عربية فصحى دقيقة وشاملة.\n\nالمطلوب: ${prompt}`;
-    promptParts.push(aiPrompt);
+    parts.push({
+      text: `أنت مساعد ذكي متخصص في المستندات لمنصة Q2Mid. أجب بلغة عربية فصحى واضحة وشاملة.\n\nالمطلوب: ${prompt}`,
+    });
 
-    // 3. إرسال الطلب للنموذج
-    const result = await model.generateContent(promptParts);
-    const response = await result.response;
-    const text = response.text();
+    // 3. إرسال الطلب المباشر عبر REST API
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 
-    // 4. خصم محاولة إذا كان الحساب مجانياً
+    const apiResponse = await fetch(geminiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts }],
+      }),
+    });
+
+    const data = await apiResponse.json();
+
+    if (!apiResponse.ok) {
+      return NextResponse.json(
+        { error: data.error?.message || 'خطأ أثناء الاتصال بنموذج الذكاء الاصطناعي' },
+        { status: apiResponse.status }
+      );
+    }
+
+    const replyText = data.candidates?.[0]?.content?.parts?.[0]?.text || 'لم يتم استخراج رد.';
+
+    // 4. خصم المحاولة إن وجد
     if (userProfile && userProfile.plan === 'free') {
       await supabase
         .from('profiles')
@@ -60,9 +78,9 @@ export async function POST(req) {
         .eq('id', userId);
     }
 
-    return NextResponse.json({ text });
+    return NextResponse.json({ text: replyText });
   } catch (error) {
-    console.error('Gemini Error:', error);
+    console.error('Chat API Error:', error);
     return NextResponse.json({ error: error.message || 'حدث خطأ أثناء معالجة الطلب' }, { status: 500 });
   }
 }
