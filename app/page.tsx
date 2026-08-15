@@ -30,7 +30,7 @@ export default function Home() {
           <UploadCloud className="mx-auto text-blue-500 mb-4" size={64} />
           <h2 className="text-2xl font-bold mb-2">ارفع ملف PDF للبدء</h2>
           <p className="text-gray-400 mb-6">الذكاء الاصطناعي الخاص بنا سيقوم بالقراءة والتحليل الفوري</p>
-          <input type="file" id="file-upload" className="hidden" accept=".pdf" onChange={(e) => setFile(e.target.files[0])} />
+          <input type="file" id="file-upload" className="hidden" accept=".pdf" onChange={(e) => setFile(e.target.files?.[0])} />
           <label htmlFor="file-upload" className="cursor-pointer bg-blue-600 hover:bg-blue-500 px-8 py-3 rounded-full font-bold shadow-[0_0_20px_rgba(59,130,246,0.5)] transition inline-block">
             {file ? `تم اختيار: ${file.name}` : 'اختر ملفاً'}
           </label>
